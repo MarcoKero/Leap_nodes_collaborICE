@@ -53,3 +53,22 @@ To visualize the output of the topic, run:
 ros2 topic echo /leapmotion/joints
 ```
 
+
+## Tracked Hand Joint Data
+The system tracks 3D positions for key hand joints, structured as follows:
+
+- **Palm & Wrist:** Palm position, rotation (quaternion), and wrist position.
+- **Fingers:** Each finger (thumb, index, middle, ring, pinky) has:
+  - Metacarpal
+  - Proximal
+  - Intermediate
+  - Distal
+  
+Each joint is represented by its `x`, `y`, and `z` coordinates.
+
+### Example Naming Convention
+- `left_palm_x`, `left_palm_y`, `left_palm_z`
+- `left_thumb_proximal_x`, `left_thumb_proximal_y`, `left_thumb_proximal_z`
+- `right_index_distal_x`, `right_index_distal_y`, `right_index_distal_z`
+
+This structure applies to both hands (`left_` and `right_`).
