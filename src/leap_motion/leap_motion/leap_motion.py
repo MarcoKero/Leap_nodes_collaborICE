@@ -75,15 +75,7 @@ def append_joints(hand, joint_msg):
         for bone in finger.bones:
             this_joint_name = joints_name[joint_count]
             joint_count += 1
-
-            # print(this_joint_name)
-            joint_msg.name.append(hand_type + '_' + this_fing_name + '_' + this_joint_name + '_x')
-            joint_msg.position.append(bone.next_joint.x)
-            joint_msg.name.append(hand_type + '_' + this_fing_name + '_' + this_joint_name + '_y')
-            joint_msg.position.append(bone.next_joint.y)
-            joint_msg.name.append(hand_type + '_' + this_fing_name + '_' + this_joint_name + '_z')
-            joint_msg.position.append(bone.next_joint.z)
-
+            append_specific_joint(hand_type, '_' + this_fing_name + '_' + this_joint_name , bone.next_joint, joint_msg)
 
 def main():
     rclpy.init()
