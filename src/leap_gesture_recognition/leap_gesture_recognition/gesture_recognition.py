@@ -14,9 +14,32 @@ class LeapGestureRecognition(Node):
     def listener_callback(self, msg):
         self.joint_names = msg.name
         self.joint_positions = msg.position
-        self.get_logger().info('Joint names and positions updated.')
-        print(self.joint_names)
+        #self.get_logger().info('Joint names and positions updated.')
+        #print(self.joint_names)
+        handle_joints(self.joint_names, self.joint_positions)
 
+
+def specific_joints_return(joint_names, joint_positions, target_joints):
+    vector_joints=[]
+    #print(joint_positions)
+    for name, position in zip(joint_names, joint_positions):
+        if name in target_joints:
+            vector_joints.append(position)
+            #print(f"Tracked Joint: {name}, Position: {position}")
+    return vector_joints
+
+def create_xyz_target_joint(name):
+    return [str(name)+'_x',str(name)+'_y',str(name)+'_z']
+
+def create_xyzw_target_joint(name):
+    return [str(name)+'_x',str(name)+'_y',str(name)+'_z',str(name)+'_w']
+
+def handle_joints(joint_names,joint_positions):
+    target_joints = ["left_palm", "thumb_tip"]
+    for t_j in target_joints:
+        target=create_xyz_target_joint(t_j)
+        #print(target)
+        this_target_joint_positions=specific_joints_return(joint_names, joint_positions, target)
 
 def main(args=None):
     rclpy.init(args=args)
