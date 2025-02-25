@@ -3,8 +3,9 @@
 ## Installation
 
 ### Install Required Libraries
+Install ROS.
 
-Follow the instructions to install the necessary libraries:
+Follow the instructions to install the necessary libraries of Leap:
 [LeapC Python Bindings](https://github.com/ultraleap/leapc-python-bindings/tree/main)
 
 ## Running on Windows Linux Subsystem (WLS)
