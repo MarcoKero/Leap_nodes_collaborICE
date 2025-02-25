@@ -8,14 +8,13 @@ import time
 
 fingers_name = ['thumb', 'index', 'middle', 'ring', 'pinky']
 joints_name = ['metacarpal', 'proximal', 'intermediate', 'distal']
-
 class LeapMotionPublisher(Node):
     def __init__(self):
         super().__init__('leapmotion_publisher')
         self.publisher_ = self.create_publisher(JointState, '/leapmotion/joints', 1)
         self.timer = self.create_timer(0.1, self.publish_joints)
         self.connection = leap.Connection()
-        self.listener = MyListener(self.publisher_)
+        self.listener = MyListener(self.publisher_, self)
         self.connection.add_listener(self.listener)
 
         with self.connection.open():
@@ -29,23 +28,24 @@ class LeapMotionPublisher(Node):
 
 
 class MyListener(leap.Listener):
-    def __init__(self, publisher):
+    def __init__(self, publisher, node:Node):
         super().__init__()
+        self.node = node
         self.publisher = publisher
 
     def on_connection_event(self, event):
         print("Connected")
 
     def on_tracking_event(self, event):
-        print("Event triggered")
+        #print("Event triggered")
         joint_msg = JointState()
-        joint_msg.header.stamp = rclpy.time.Time().to_msg()
+        joint_msg.header.stamp = self.node.get_clock().now().to_msg()
         if event.hands != []:
             for hand in event.hands:
                 append_joints(hand, joint_msg)
             self.publisher.publish(joint_msg)
-        else:
-            print("Hand not detected")
+        #else:
+        #    print("Hand not detected")
 
 def append_specific_joint(hand_type, name, obj_to_append, joint_msg):
     joint_msg.name.append(hand_type + name+'_x')
