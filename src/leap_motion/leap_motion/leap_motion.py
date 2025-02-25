@@ -51,9 +51,9 @@ def append_specific_joint(hand_type, name, obj_to_append, joint_msg):
     joint_msg.name.append(hand_type + name+'_x')
     joint_msg.position.append(obj_to_append.x)
     joint_msg.name.append(hand_type + name+'_y')
-    joint_msg.position.append(obj_to_append.x)
+    joint_msg.position.append(obj_to_append.y)
     joint_msg.name.append(hand_type + name+'_z')
-    joint_msg.position.append(obj_to_append.x)
+    joint_msg.position.append(obj_to_append.z)
 
 def append_joints(hand, joint_msg):
     hand_type = 'left' if str(hand.type) == 'HandType.Left' else 'right'
