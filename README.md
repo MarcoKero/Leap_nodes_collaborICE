@@ -8,7 +8,7 @@ Install ROS.
 Follow the instructions to install the necessary libraries of Leap:
 [LeapC Python Bindings](https://github.com/ultraleap/leapc-python-bindings/tree/main)
 
-## Running on Windows Linux Subsystem (WLS)
+## Running on Windows Subsystem Linux(WSL)
 
 1. Open **PowerShell as Administrator**
 2. Run the following command to list USB devices:
