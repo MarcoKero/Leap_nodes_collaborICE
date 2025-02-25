@@ -47,15 +47,25 @@ class MyListener(leap.Listener):
         else:
             print("Hand not detected")
 
+def append_specific_joint(hand_type, name, obj_to_append, joint_msg):
+    joint_msg.name.append(hand_type + name+'_x')
+    joint_msg.position.append(obj_to_append.x)
+    joint_msg.name.append(hand_type + name+'_y')
+    joint_msg.position.append(obj_to_append.x)
+    joint_msg.name.append(hand_type + name+'_z')
+    joint_msg.position.append(obj_to_append.x)
 
 def append_joints(hand, joint_msg):
     hand_type = 'left' if str(hand.type) == 'HandType.Left' else 'right'
-    joint_msg.name.append(hand_type + '_palm_x')
-    joint_msg.position.append(hand.palm.position.x)
-    joint_msg.name.append(hand_type + '_palm_y')
-    joint_msg.position.append(hand.palm.position.y)
-    joint_msg.name.append(hand_type + '_palm_z')
-    joint_msg.position.append(hand.palm.position.z)
+
+    append_specific_joint(hand_type, '_palm', hand.palm.position,joint_msg)
+
+    append_specific_joint(hand_type, '_palm_rot', hand.palm.orientation,joint_msg)
+    joint_msg.name.append(hand_type + '_palm_rot_w')
+    joint_msg.position.append(hand.palm.orientation.w)
+
+    append_specific_joint(hand_type, '_wrist', hand.arm.next_joint,joint_msg)
+
     fing_count = 0
     for finger in hand.digits:
         this_fing_name = fingers_name[fing_count]
