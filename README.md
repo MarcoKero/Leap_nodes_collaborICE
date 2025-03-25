@@ -50,7 +50,8 @@ ros2 run leap_motion leap_motion
 To visualize the output of the topic, run:
 
 ```bash
-ros2 topic echo /leapmotion/joints
+ros2 topic echo /leapmotion1/joints
+ros2 topic echo /leapmotion2/joints
 ```
 
 
