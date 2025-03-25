@@ -1,136 +1,143 @@
-import leap
+import os
+import time
+import json
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState
-import time
-from leap.events import TrackingEvent
-from typing import Callable
-from timeit import default_timer as timer
+import leap
+from leap import EventType, TrackingMode, HandType
 
-# List of finger and joint names for reference
-fingers_name = ['thumb', 'index', 'middle', 'ring', 'pinky']
-joints_name = ['metacarpal', 'proximal', 'intermediate', 'distal']
+# Standard ROS2 message types
+from std_msgs.msg import Header, String
 
-# Listener class to monitor Leap Motion device events
-class MultiDeviceListener(leap.Listener):
-    def __init__(self, event_type):
-        super().__init__()
-        self._event_type = event_type
-        self.n_events = 0  # Counter for the number of events received
 
-    def on_event(self, event):
-        # Increment event count if the event is of the specified type
-        if isinstance(event, self._event_type):
-            self.n_events += 1
-
-# Utility function to wait for a condition to become true within a timeout period
-def wait_until(condition: Callable[[], bool], timeout: float = 5, poll_delay: float = 0.01):
-    start_time = timer()
-    while timer() - start_time < timeout:
-        if condition():
-            return True
-        time.sleep(poll_delay)
-    return condition()
-
-# Function to retrieve and subscribe to active Leap Motion devices
-def get_updated_devices(connection):
-    devices = connection.get_devices()
-    for device in devices:
-        with device.open():
-            connection.subscribe_events(device)
-
-# ROS2 Node that publishes Leap Motion joint state data
 class LeapMotionPublisher(Node):
     def __init__(self):
         super().__init__('leapmotion_publisher')
-        self.publisher1_ = self.create_publisher(JointState, '/leapmotion1/joints', 1)
-        self.publisher2_ = self.create_publisher(JointState, '/leapmotion2/joints', 1)
-        self.timer = self.create_timer(0.1, self.publish_joints)  # Timer for publishing data
+        self.publisher_ = self.create_publisher(String, '/sensors/leap/json', 1)
+        # self.timer = self.create_timer(0.1, self.publish_joints)
+        self.connection = leap.Connection()
+        self.listener = MyListener(self.get_logger(), self.publisher_, self)
+        self.connection.add_listener(self.listener)
 
-        # Create event listeners for tracking and device events
-        self.tracking_listener = TrackingEventListener([self.publisher1_, self.publisher2_])
-        self.device_listener = MultiDeviceListener(leap.events.DeviceEvent)
-
-        self.connection = leap.Connection(multi_device_aware=True)
-        self.connection.add_listener(self.tracking_listener)
-        self.connection.add_listener(self.device_listener)
-
-        # Open connection and ensure multiple devices are detected
         with self.connection.open():
-            wait_until(lambda: self.device_listener.n_events > 1)
-
-            self.current_device_events = self.device_listener.n_events
-            get_updated_devices(self.connection)
+            #    print("Connected")
+            self.connection.set_tracking_mode(leap.TrackingMode.Desktop)
             while True:
-                if self.device_listener.n_events != self.current_device_events:
-                    self.current_device_events = self.device_listener.n_events
-                    get_updated_devices(self.connection)
+                time.sleep(1)
 
-                time.sleep(0.5)  # Delay to prevent excessive polling
+def convert_vector_to_list(vector, scale_factor=1000.0):
+    """
+    Convert LeapMotion vector to list
+    Optional scale_factor to convert units (default converts mm to meters)
+    """
+    return [
+        vector.x / scale_factor,
+        vector.y / scale_factor,
+        vector.z / scale_factor
+    ]
 
-    def publish_joints(self):
-        pass  # The listener handles publishing data
+def convert_quaternion_to_list(quaternion):
+    """Convert LeapMotion quaternion to list"""
+    return [
+        quaternion.x,
+        quaternion.y,
+        quaternion.z,
+        quaternion.w
+    ]
 
-# Listener for tracking Leap Motion hand movement events
-class TrackingEventListener(leap.Listener):
-    def __init__(self, publishers):
+def create_data(event, frame_counter):
+    # Prepare frame data following the Pydantic LeapFrame model
+    frame_data = {
+        'frame_id': frame_counter,
+        'tracking_frame_id': event.tracking_frame_id,
+        'timestamp': event.timestamp,
+        'hands': []
+    }
+    
+    # Process each hand
+    for hand in event.hands:
+        # Prepare hand data following the Pydantic LeapHand and HandData models
+        hand_data = {
+            'hand_type': hand.type.name.lower(),
+            'hand_id': hand.id,
+            'confidence': hand.confidence,
+            'hand_keypoints': {
+                'palm_position': convert_vector_to_list(hand.palm.position),
+                'palm_orientation': convert_quaternion_to_list(hand.palm.orientation),
+                'arm': {
+                    'prev_joint': convert_vector_to_list(hand.arm.prev_joint),
+                    'next_joint': convert_vector_to_list(hand.arm.next_joint),
+                    'rotation': convert_quaternion_to_list(hand.arm.rotation)
+                },
+                'fingers': {},
+                'grab_angle': hand.grab_angle  # in radians
+            }
+        }
+        
+        # Process fingers
+        finger_types = ['thumb', 'index', 'middle', 'ring', 'pinky']
+        
+        for finger_name, finger in zip(finger_types, [hand.thumb, hand.index, hand.middle, hand.ring, hand.pinky]):
+            finger_data = {
+                'metacarpal': {
+                    'prev_joint': convert_vector_to_list(finger.metacarpal.prev_joint),
+                    'next_joint': convert_vector_to_list(finger.metacarpal.next_joint),
+                    'rotation': convert_quaternion_to_list(finger.metacarpal.rotation)
+                },
+                'proximal': {
+                    'prev_joint': convert_vector_to_list(finger.proximal.prev_joint),
+                    'next_joint': convert_vector_to_list(finger.proximal.next_joint),
+                    'rotation': convert_quaternion_to_list(finger.proximal.rotation)
+                },
+                'intermediate': {
+                    'prev_joint': convert_vector_to_list(finger.intermediate.prev_joint),
+                    'next_joint': convert_vector_to_list(finger.intermediate.next_joint),
+                    'rotation': convert_quaternion_to_list(finger.intermediate.rotation)
+                },
+                'distal': {
+                    'prev_joint': convert_vector_to_list(finger.distal.prev_joint),
+                    'next_joint': convert_vector_to_list(finger.distal.next_joint),
+                    'rotation': convert_quaternion_to_list(finger.distal.rotation)
+                }
+            }
+            
+            hand_data['hand_keypoints']['fingers'][finger_name] = finger_data
+        
+        frame_data['hands'].append(hand_data)
+    
+    # Convert to JSON
+    json_output = json.dumps(frame_data)
+    
+    # Publish JSON
+    msg = String()
+    msg.data = json_output
+    return msg
+
+class MyListener(leap.Listener):
+    def __init__(self, logger, publisher, node:Node):
         super().__init__()
-        self.publishers = publishers  # List of ROS publishers
-        self.last_framepublished = [0, 0]  # Track last published frame for each device
-        self.hands = []  # Store detected hands
+        self.logger = logger
+        self.node = node
+        self.publisher = publisher
+        self.frame_counter = 0
 
-    def number_of_devices_tracking(self):
-        return len(self.device_latest_tracking_event)
+    def on_connection_event(self, event):
+        print("Connected")
 
-    def on_tracking_event(self, event: TrackingEvent):
-        if event.hands:  # Check if hands are detected
-            source_device = event.metadata.device_id - 1  # Identify source device
-            this_timeframe = event.tracking_frame_id
-            if this_timeframe > int(self.last_framepublished[source_device]):  # Ensure new frame
-                self.last_framepublished[source_device] = this_timeframe  # Update last frame
-                self.hands = event.hands
-                self.publish_new_data(source_device)
+    def on_tracking_event(self, event):
+        self.logger.debug("Tracking event: " +  str(event.timestamp) + " hands: " + str(len(event.hands)))
+        msg = create_data(event, self.frame_counter)  # String
+        self.frame_counter += 1
+        self.publisher.publish(msg)
+        
 
-    def publish_new_data(self, source_device):
-        joint_msg = JointState()
-        joint_msg.header.stamp = rclpy.time.Time().to_msg()
-        for hand in self.hands:
-            append_joints(hand, joint_msg)  # Append detected joint positions
-        if joint_msg.name:
-            self.publishers[source_device].publish(joint_msg)
 
-# Helper function to append specific joint value to a message
-def append_specific_joint(hand_type, name, obj_to_append, joint_msg):
-    joint_msg.name.append(hand_type + name + '_x')
-    joint_msg.position.append(obj_to_append.x)
-    joint_msg.name.append(hand_type + name + '_y')
-    joint_msg.position.append(obj_to_append.y)
-    joint_msg.name.append(hand_type + name + '_z')
-    joint_msg.position.append(obj_to_append.z)
-
-# Function to append all hand joints to the message
-def append_joints(hand, joint_msg):
-    hand_type = 'left' if str(hand.type) == 'HandType.Left' else 'right'
-
-    append_specific_joint(hand_type, '_palm', hand.palm.position, joint_msg)
-    append_specific_joint(hand_type, '_palm_rot', hand.palm.orientation, joint_msg)
-    joint_msg.name.append(hand_type + '_palm_rot_w')
-    joint_msg.position.append(hand.palm.orientation.w)
-    append_specific_joint(hand_type, '_wrist', hand.arm.next_joint, joint_msg)
-
-    for fing_count, finger in enumerate(hand.digits):
-        this_fing_name = fingers_name[fing_count]
-        for joint_count, bone in enumerate(finger.bones):
-            this_joint_name = joints_name[joint_count]
-            bone_name = f'_{this_fing_name}_{this_joint_name}'
-            append_specific_joint(hand_type, bone_name, bone.next_joint, joint_msg)
-
-# Main function to initialize the ROS2 node
 def main():
     rclpy.init()
     leapmotion_publisher = LeapMotionPublisher()
-    rclpy.spin(leapmotion_publisher)  # Keep the node running
+    rclpy.spin(leapmotion_publisher)
     rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
