@@ -23,7 +23,7 @@ A ROS2 package for streaming data from the LeapMotion hand tracking device.
 - LeapMotion SDK
 - LeapMotion device
 
-### Building
+<!-- ### Building
 
 ```
 cd ~/ros2_ws/src
@@ -31,12 +31,12 @@ git clone https://github.com/user/collaborice_leap_streamer.git
 cd ..
 colcon build --packages-select leap_interfaces collaborice_leap_streamer
 source install/setup.bash
-```
+``` -->
 
 ### Running
 
 ```
-ros2 launch collaborice_leap_streamer leap_streamer.launch.py
+ros2 launch leap_motion leap_streamer.launch.py
 ```
 
 ### Launch Parameters

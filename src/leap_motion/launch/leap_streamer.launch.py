@@ -25,7 +25,7 @@ def generate_launch_description():
 
     # LeapMotion streamer node
     leap_streamer_node = Node(
-        package='collaborice_leap_streamer',
+        package='leap_motion',
         executable='leap_streamer',
         name='leap_motion_streamer',
         parameters=[{
